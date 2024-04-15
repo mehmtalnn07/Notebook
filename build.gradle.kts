@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.androidApplication) apply false
     alias(libs.plugins.jetbrainsKotlinAndroid) apply false
     kotlin("jvm") version "1.9.21" apply false
-    id("androidx.room") version "$room_version" apply false
+    id("androidx.room") version room_version apply false
 }
 
 buildscript {
