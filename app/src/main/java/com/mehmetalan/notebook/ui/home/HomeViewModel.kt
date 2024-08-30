@@ -28,6 +28,12 @@ class HomeViewModel(
         }
     }
 
+    fun recoveryNotesMultiple(notesIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.moveToListMultiple(notesIds)
+        }
+    }
+
     fun deleteFromFavorites(noteIds: List<Int>) {
         viewModelScope.launch {
             noteRepository.deleteFromFavorites(noteIds)

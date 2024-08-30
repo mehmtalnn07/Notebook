@@ -92,7 +92,7 @@ fun FavoritesScreen(
     val trashUiState by viewModel.trashUiState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
-    var topBarChanged by remember { mutableStateOf(true) }
+    var topBarChanged by remember { mutableStateOf(false) }
     var allSelected by remember { mutableStateOf(false) }
     var selectedNotes by remember { mutableStateOf(setOf<Note>()) }
     val activeNotes = trashUiState.noteList.filter { it.favorite }
@@ -114,45 +114,47 @@ fun FavoritesScreen(
     Scaffold (
         topBar = {
             if (topBarChanged) {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     title = {
+                        Text(
+                            text = "Favoriler"
+                        )
+                    },
+                    navigationIcon = {
                         Row (
-                            modifier = Modifier
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row (
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = allSelected,
-                                    onCheckedChange = { toggleSelectAllNotes() }
-                                )
-                                Text(
-                                    text = selectedNotes.size.toString(),
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                IconButton(
-                                    onClick = {
-                                        topBarChanged = false
-                                        selectedNotes = emptySet()
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Close,
-                                        contentDescription = ""
-                                    )
-                                }
-                            }
+                            Checkbox(
+                                checked = allSelected,
+                                onCheckedChange = { toggleSelectAllNotes() }
+                            )
+                            Text(
+                                text = selectedNotes.size.toString(),
+                                fontWeight = FontWeight.ExtraBold
+                            )
                             IconButton(
-                                onClick = {  }
+                                onClick = {
+                                    topBarChanged = false
+                                    selectedNotes = emptySet()
+                                }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.MoreVert,
+                                    imageVector = Icons.Outlined.Close,
                                     contentDescription = ""
                                 )
                             }
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                showDropDownMenu = true
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.MoreVert,
+                                contentDescription = ""
+                            )
                         }
                     }
                 )
@@ -187,10 +189,11 @@ fun FavoritesScreen(
         Column (
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             DropdownMenu(
-                offset = DpOffset(x = screenWidthDp - 10.dp, y = -10.dp),
+                offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
                 expanded = showDropDownMenu,
                 onDismissRequest = { showDropDownMenu = false },
             ) {
@@ -235,7 +238,13 @@ fun FavoritesScreen(
                     text = {
                         Text(text = "Favorilerden Çıkar")
                     },
-                    onClick = {  },
+                    onClick = {
+                        val notesToDeleteIds = selectedNotes.map { it.id }
+                        favoriteViewModel.deleteFromFavorites(notesToDeleteIds)
+                        showDropDownMenu = false
+                        topBarChanged = false
+                        selectedNotes = emptySet()
+                    },
                     trailingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Star,
@@ -243,7 +252,13 @@ fun FavoritesScreen(
                         )
                     }
                 )
-
+            }
+            if (activeNotes.isEmpty()) {
+                Text(
+                    text = "Favori Notunuz Bulunmamaktadır",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
             LazyVerticalGrid (
                 columns = GridCells.Fixed(2),

@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,18 +37,25 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.HorizontalSplit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.VerticalSplit
+import androidx.compose.material.icons.outlined.BorderVertical
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.HorizontalRule
+import androidx.compose.material.icons.outlined.HorizontalSplit
+import androidx.compose.material.icons.outlined.More
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.VerticalSplit
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -101,6 +109,7 @@ import com.mehmetalan.notebook.data.NoteRepository
 import com.mehmetalan.notebook.history.History
 import com.mehmetalan.notebook.history.HistoryDatabase
 import com.mehmetalan.notebook.ui.AppViewModelProvider
+import com.mehmetalan.notebook.ui.notes.TrashScreenViewModel
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.time.LocalDateTime
@@ -126,9 +135,11 @@ fun HomeScreen(
     val snackBarHostState = remember { SnackbarHostState() }
     var topBarChanged by remember { mutableStateOf(false) }
     var selectedNotes by remember { mutableStateOf(setOf<Note>()) }
+    var recoveryNoteList by remember { mutableStateOf(setOf<Note>()) }
     var allSelected by remember { mutableStateOf(false) }
     val activeNotes = homeUiState.noteList.filter { !it.isDeleted }
     var showDropDownMenu by remember { mutableStateOf(false) }
+    var isIconChanged by remember { mutableStateOf(false) }
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
     var query by remember {
         mutableStateOf("")
@@ -219,48 +230,47 @@ fun HomeScreen(
     Scaffold (
         topBar = {
             if (topBarChanged) { 
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     title = { 
+                        Text(
+                            text = "Not Seç"
+                        )
+                    },
+                    navigationIcon = {
                         Row (
-                            modifier = Modifier
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row (
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = allSelected,
-                                    onCheckedChange = {
-                                        toggleSelectAllNotes()
-                                    }
-                                )
-                                Text(text = selectedNotes.size.toString())
-                                IconButton(
-                                    onClick = {
-                                        topBarChanged = false
-                                        selectedNotes = emptySet()
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Close,
-                                        contentDescription = ""
-                                    )
+                            Checkbox(
+                                checked = allSelected,
+                                onCheckedChange = {
+                                    toggleSelectAllNotes()
                                 }
-                                Spacer(modifier = Modifier.size(60.dp))
-                                Text(text = "Not Seç")
-                            }
+                            )
+                            Text(text = selectedNotes.size.toString())
                             IconButton(
                                 onClick = {
-                                    showDropDownMenu = true
+                                    topBarChanged = false
+                                    recoveryNoteList = selectedNotes
+                                    selectedNotes = emptySet()
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.MoreVert,
+                                    imageVector = Icons.Outlined.Close,
                                     contentDescription = ""
                                 )
                             }
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                showDropDownMenu = true
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.MoreVert,
+                                contentDescription = ""
+                            )
                         }
                     }
                 )
@@ -283,6 +293,17 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     },
+                    actions = {
+                        IconButton(
+                            onClick = { isIconChanged = !isIconChanged } // İkonun değişmesini sağlıyor
+                        ) {
+                            Icon(
+                                imageVector = if (isIconChanged) Icons.Filled.VerticalSplit else Icons.Filled.HorizontalSplit, // İkonu değiştiriyor
+                                contentDescription = "",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 )
             }
         },
@@ -311,7 +332,7 @@ fun HomeScreen(
                 .padding(innerPadding)
         ) {
             DropdownMenu(
-                offset = DpOffset(x = screenWidthDp - 10.dp, y = -10.dp),
+                offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
                 expanded = showDropDownMenu,
                 onDismissRequest = { showDropDownMenu = false },
             ) {
@@ -326,17 +347,20 @@ fun HomeScreen(
                         val notesToDeleteIds = selectedNotes.map { it.id }
                         viewModel.deleteNotes(noteIds = notesToDeleteIds)
                         showDropDownMenu = false
+                        recoveryNoteList = selectedNotes
                         selectedNotes = emptySet()
                         topBarChanged = false
                         scope.launch {
                             val result = snackBarHostState
                                 .showSnackbar(
-                                    message = "${selectedNotes.size} adet not silindi",
+                                    message = "Notlar Silindi",
                                     actionLabel = "Geri Yükle"
                                 )
                             when (result) {
                                 SnackbarResult.ActionPerformed -> {
-                                    Toast.makeText(context, "Action a tıklandı", Toast.LENGTH_SHORT).show()
+                                    val recoveryNotesIds = recoveryNoteList.map { it.id }
+                                    viewModel.recoveryNotesMultiple(notesIds = recoveryNotesIds)
+                                    recoveryNoteList = emptySet()
                                 }
                                 SnackbarResult.Dismissed -> {
                                     Toast.makeText(context, "snackbar kendi kendine kapandı", Toast.LENGTH_SHORT).show()
@@ -368,7 +392,22 @@ fun HomeScreen(
                                 val notesToFavoriteIds = selectedNotes.map { it.id }
                                 viewModel.moveToFavoriteMultiple(noteIds = notesToFavoriteIds)
                             }
+                            selectedNotes = emptySet()
                             showDropDownMenu = false
+                            topBarChanged = false
+                            scope.launch {
+                                val result = snackBarHostState
+                                    .showSnackbar(
+                                        message = "Notlar Favorilere Eklendi",
+                                    )
+                                when (result) {
+                                    SnackbarResult.ActionPerformed -> {
+                                    }
+                                    SnackbarResult.Dismissed -> {
+
+                                    }
+                                }
+                            }
                         },
                         trailingIcon = {
                             val favoriteStatus = getFavoriteStatusText()
@@ -394,7 +433,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (activeNotes.isNotEmpty()) {
+                if (activeNotes.isNotEmpty() and !topBarChanged) {
                     SearchBar(
                         modifier = Modifier.clip(shape = RoundedCornerShape(20.dp)),
                         query = query,
