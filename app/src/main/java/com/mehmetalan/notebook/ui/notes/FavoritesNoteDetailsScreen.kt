@@ -32,7 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mehmetalan.notebook.ui.navigation.NavigationDestination
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.ToggleButton
@@ -155,7 +158,6 @@ fun FavoriteNoteDetailsBody(
     Column (
         modifier = modifier.padding(16.dp)
     ) {
-        Text(text = note.title)
         NoteDetailsTwo(
             note = favoritesNoteDetailsUiState.noteDetails.toNote(),
             noteDetails = noteDetailsUiState.noteDetails,
@@ -189,7 +191,11 @@ fun NoteDetailsTwo(
             ),
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
-            singleLine = true
+            singleLine = true,
+            textStyle = TextStyle(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 30.sp
+            )
         )
         OutlinedTextField(
             value = noteDetails.content,

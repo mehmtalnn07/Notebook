@@ -5,12 +5,16 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
+import android.util.Log
+import android.widget.Space
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,13 +35,23 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,8 +63,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -72,10 +92,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mehmetalan.notebook.data.Note
 import com.mehmetalan.notebook.ui.navigation.NavigationDestination
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mehmetalan.notebook.R
+import com.mehmetalan.notebook.data.NoteRepository
 import com.mehmetalan.notebook.history.History
 import com.mehmetalan.notebook.history.HistoryDatabase
 import com.mehmetalan.notebook.ui.AppViewModelProvider
@@ -89,7 +111,7 @@ object HomeDestination : NavigationDestination {
     const val noteIdArg = "noteId"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "SuspiciousIndentation")
 @Composable
 fun HomeScreen(
@@ -97,33 +119,173 @@ fun HomeScreen(
     navigateToAddPage: () -> Unit,
     navigateToDetailPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    viewModel: HomeViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val homeUiState by viewModel.homeUiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackBarHostState = remember { SnackbarHostState() }
+    var topBarChanged by remember { mutableStateOf(false) }
+    var selectedNotes by remember { mutableStateOf(setOf<Note>()) }
+    var allSelected by remember { mutableStateOf(false) }
+    val activeNotes = homeUiState.noteList.filter { !it.isDeleted }
+    var showDropDownMenu by remember { mutableStateOf(false) }
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
+    var query by remember {
+        mutableStateOf("")
+    }
+    var active by remember {
+        mutableStateOf(false)
+    }
+    val context = LocalContext.current
+    val historyDao = remember { HistoryDatabase.getDatabase(context).historyDao() }
+    var history by remember {
+        mutableStateOf<List<History>>(emptyList())
+    }
 
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data: Intent? = result.data
+            val text = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!text.isNullOrEmpty()) {
+                query = text[0]
+            }
+        }
+    }
+
+
+
+
+    fun toggleSelectAllNotes() {
+        if (allSelected) {
+            selectedNotes = emptySet()
+        } else {
+            selectedNotes = activeNotes.toSet()
+        }
+        allSelected = !allSelected
+    }
+
+    fun getFavoriteStatusText(): String? {
+        val allSelectedAreFavorites = selectedNotes.all { it.favorite }
+        val noneSelectedAreFavorites = selectedNotes.none { it.favorite }
+
+        return when {
+            selectedNotes.isEmpty() -> null
+            allSelectedAreFavorites -> "Favorilerden Çıkar"
+            noneSelectedAreFavorites -> "Favorilere Ekle"
+            else -> null
+        }
+    }
+    fun hasMixedFavoriteStatus(notes: List<Note>): Boolean {
+        val hasFavorite = notes.any { it.favorite }
+        val hasNonFavorite = notes.any { !it.favorite }
+        return hasFavorite && hasNonFavorite
+    }
+
+    val favoriteStatusText = getFavoriteStatusText()
+
+    @Composable
+    fun performSearch() {
+        val searchText = query.trim().toLowerCase(Locale.getDefault())
+        val filteredNotes = if (searchText.isEmpty()) {
+            null
+        } else {
+            activeNotes.filter { note ->
+                note.title.toLowerCase(Locale.getDefault()).contains(searchText)
+                        || note.content.toLowerCase(Locale.getDefault()).contains(searchText)
+            }
+        }
+        if (filteredNotes != null) {
+            NoteList(
+                noteList = filteredNotes,
+                onItemClick = { note -> navigateToDetailPage(note.id) },
+                onDeleteNotes = { notesToDelete ->
+                    val notesToDeleteIds = notesToDelete.map { it.id }
+                    viewModel.deleteNotes(noteIds = notesToDeleteIds)
+                },
+                onFavoriteNotes = { notesToFavorite ->
+                    val notesToFavoriteIds = notesToFavorite.map { it.id }
+                    viewModel.moveToFavoriteMultiple(notesToFavoriteIds)
+                },
+                onDeleteFavorites = { deleteFromFavorites ->
+                    val notesToFavoritesIds = deleteFromFavorites.map { it.id }
+                    viewModel.deleteFromFavorites(notesToFavoritesIds)
+                },
+                onLongClickActive = {  }
+            )
+        }
+    }
     Scaffold (
         topBar = {
-                 CenterAlignedTopAppBar(
-                     navigationIcon = {
-                                      IconButton(
-                                          onClick = openToDrawer
-                                      ) {
-                                          Icon(
-                                              imageVector = Icons.Filled.Menu,
-                                              contentDescription = stringResource(R.string.open_to_drawer),
-                                              tint = MaterialTheme.colorScheme.primary
-                                          )
-                                      }
-                     },
-                     title = {
-                         Text(
-                             text = HomeDestination.titleRes,
-                             color = MaterialTheme.colorScheme.primary
-                         )
-                     },
-                 )
+            if (topBarChanged) { 
+                TopAppBar(
+                    title = { 
+                        Row (
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row (
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = allSelected,
+                                    onCheckedChange = {
+                                        toggleSelectAllNotes()
+                                    }
+                                )
+                                Text(text = selectedNotes.size.toString())
+                                IconButton(
+                                    onClick = {
+                                        topBarChanged = false
+                                        selectedNotes = emptySet()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Close,
+                                        contentDescription = ""
+                                    )
+                                }
+                                Spacer(modifier = Modifier.size(60.dp))
+                                Text(text = "Not Seç")
+                            }
+                            IconButton(
+                                onClick = {
+                                    showDropDownMenu = true
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.MoreVert,
+                                    contentDescription = ""
+                                )
+                            }
+                        }
+                    }
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    navigationIcon = {
+                        IconButton(
+                            onClick = openToDrawer
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = stringResource(R.string.open_to_drawer),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = HomeDestination.titleRes,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                )
+            }
         },
-
         floatingActionButton = {
             FloatingActionButton(
                 onClick = navigateToAddPage,
@@ -137,234 +299,299 @@ fun HomeScreen(
                 )
             }
         },
+        snackbarHost = { 
+            SnackbarHost(
+                hostState = snackBarHostState
+            )
+        }
     ) {innerPadding ->
-        HomeBody(
-            noteList = homeUiState.noteList,
-            onItemClick = navigateToDetailPage,
-            modifier = modifier
+        Column (
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(innerPadding)
-                .fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HomeBody(
-    noteList: List<Note>,
-    onItemClick: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var query by remember {
-        mutableStateOf("")
-    }
-    var active by remember {
-        mutableStateOf(false)
-    }
-    val context = LocalContext.current
-    val activeNotes = noteList.filter { !it.isDeleted }
-    val historyDao = remember { HistoryDatabase.getDatabase(context).historyDao() }
-    var history by remember {
-        mutableStateOf<List<History>>(emptyList())
-    }
-    LaunchedEffect(Unit) {
-        history = historyDao.getAllSearchHistory()
-    }
-    @Composable
-    fun performSearch() {
-        val searchText = query.trim().toLowerCase(Locale.getDefault())
-        // Arama sorgusuna göre notları filtrele
-        val filteredNotes = if (searchText.isEmpty()) {
-            null
-        } else {
-            activeNotes.filter { note ->
-                note.title.toLowerCase(Locale.getDefault()).contains(searchText)
-                        || note.content.toLowerCase(Locale.getDefault()).contains(searchText)
-            }
-        }
-        if (filteredNotes != null) {
-            NoteList(
-                noteList = filteredNotes,
-                onItemClick = { note ->
-                    onItemClick(note.id)
-                }
-            )
-        }
-    }
-
-    val coroutineScope = rememberCoroutineScope()
-    val speechLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data: Intent? = result.data
-            val text = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            if (!text.isNullOrEmpty()) {
-                query = text[0]
-            }
-        }
-    }
-    Column (
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-    ) {
-        SearchBar(
-            modifier = Modifier.clip(shape = RoundedCornerShape(20.dp)),
-            query = query,
-            onQueryChange = { newQuery ->
-                query = newQuery },
-            onSearch = { newQuery ->
-                query = newQuery
-                // Arama sorgusunu geçmişe ekle
-                coroutineScope.launch {
-                    historyDao.insertSearchHistory(History(query = newQuery))
-                    history = historyDao.getAllSearchHistory()
-                }
-            },
-            active = active,
-            onActiveChange = { active = it },
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.search),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = stringResource(R.string.search_button),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            trailingIcon = {
-                Row {
-                    if (active) {
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                                intent.putExtra(
-                                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                )
-                                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Search")
-                                try {
-                                    speechLauncher.launch(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(
-                                        context,
-                                        "Your device does not support speech recognition",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Mic,
-                                contentDescription = stringResource(R.string.microphone_button),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    if (active) {
-                        IconButton(
-                            onClick = {
-                                // Tüm arama geçmişini bellekten kaldır
-                                query = ""
-                                active = false
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.close_button),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    } else {
-                        query = ""
-                    }
-                }
-            }
         ) {
-            Column (
-                modifier = Modifier.fillMaxSize(),
+            DropdownMenu(
+                offset = DpOffset(x = screenWidthDp - 10.dp, y = -10.dp),
+                expanded = showDropDownMenu,
+                onDismissRequest = { showDropDownMenu = false },
             ) {
-                Row (
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    if (query.isEmpty()) {
+                DropdownMenuItem(
+                    text = {
                         Text(
-                            text = if (history.isEmpty()) stringResource(R.string.empty_history) else stringResource(R.string.history_title),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 10.dp, top = 10.dp)
+                            text = "Çöp Kutusuna Taşı",
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        TextButton(
-                            onClick = {
-                                // Tüm arama geçmişini sil
-                                coroutineScope.launch {
-                                    historyDao.deleteAllSearchHistory()
-                                    history = emptyList() // Veritabanı güncellendiğinde liste güncellenir
+                    },
+                    onClick = {
+                        val notesToDeleteIds = selectedNotes.map { it.id }
+                        viewModel.deleteNotes(noteIds = notesToDeleteIds)
+                        showDropDownMenu = false
+                        selectedNotes = emptySet()
+                        topBarChanged = false
+                        scope.launch {
+                            val result = snackBarHostState
+                                .showSnackbar(
+                                    message = "${selectedNotes.size} adet not silindi",
+                                    actionLabel = "Geri Yükle"
+                                )
+                            when (result) {
+                                SnackbarResult.ActionPerformed -> {
+                                    Toast.makeText(context, "Action a tıklandı", Toast.LENGTH_SHORT).show()
                                 }
-                                query = ""
-                            },
-                        ) {
-                            Text(
-                                text = stringResource(R.string.history_delete_text),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                                SnackbarResult.Dismissed -> {
+                                    Toast.makeText(context, "snackbar kendi kendine kapandı", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         }
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = ""
+                        )
                     }
-                }
-                val uniqueQueries = history.map { it.query }.toSet()
-                if (query.isEmpty()) {
-                    LazyColumn (
-                        //modifier = Modifier.heightIn(min = 0.dp , max = 100.dp)
-                    ) {
-                        itemsIndexed(uniqueQueries.toList()) { index, newquery ->
+                )
+                if(!hasMixedFavoriteStatus(selectedNotes.toList())) {
+                    DropdownMenuItem(
+                        text = {
                             Text(
-                                text = if (query.isEmpty()) newquery else "",
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .clickable { query = newquery },
-                                color = MaterialTheme.colorScheme.primary,
+                                text = favoriteStatusText ?: "",
+                                color = MaterialTheme.colorScheme.primary
                             )
+                        },
+                        onClick = {
+                            val isRemovingFromFavorites = selectedNotes.all { it.favorite }
+                            if (isRemovingFromFavorites) {
+                                val notesToFavoritesIds = selectedNotes.map { it.id }
+                                viewModel.deleteFromFavorites(notesToFavoritesIds)
+                            } else {
+                                val notesToFavoriteIds = selectedNotes.map { it.id }
+                                viewModel.moveToFavoriteMultiple(noteIds = notesToFavoriteIds)
+                            }
+                            showDropDownMenu = false
+                        },
+                        trailingIcon = {
+                            val favoriteStatus = getFavoriteStatusText()
+                            when (favoriteStatus) {
+                                "Favorilere Ekle" -> Icons.Outlined.StarBorder
+                                "Favorilerden Çıkar" -> Icons.Outlined.Star
+                                else -> null
+                            }?.let {
+                                Icon(
+                                    imageVector = it,
+                                    contentDescription = "",
+                                )
+                            }
                         }
-                    }
+
+                    )
                 }
-                performSearch()
             }
-        }
-        Spacer(modifier = Modifier.size(10.dp))
-        if (activeNotes.isEmpty()) {
-            Text(
-                text = stringResource(R.string.home_screen_empty_info),
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center,
+            Column (
                 modifier = Modifier
+                    .fillMaxWidth()
                     .padding(10.dp),
-                color = MaterialTheme.colorScheme.primary
-            )
-        } else {
-            NoteList(
-                noteList = activeNotes,
-                onItemClick = { note ->
-                    onItemClick(note.id)
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (activeNotes.isNotEmpty()) {
+                    SearchBar(
+                        modifier = Modifier.clip(shape = RoundedCornerShape(20.dp)),
+                        query = query,
+                        onQueryChange = { newQuery -> query = newQuery },
+                        onSearch = { newQuery ->
+                            query = newQuery
+                            scope.launch {
+                                historyDao.insertSearchHistory(History(query = newQuery))
+                                history = historyDao.getAllSearchHistory()
+                            }
+                        },
+                        active = active,
+                        onActiveChange = { active = it },
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.search),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = stringResource(R.string.search_button),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingIcon = {
+                            Row {
+                                if (active) {
+                                    IconButton(
+                                        onClick = {
+                                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                            intent.putExtra(
+                                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                            )
+                                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Search")
+                                            try {
+                                                speechLauncher.launch(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Your device does not support speech recognition",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Mic,
+                                            contentDescription = stringResource(R.string.microphone_button),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                if (active) {
+                                    IconButton(
+                                        onClick = {
+                                            query = ""
+                                            active = false
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Close,
+                                            contentDescription = stringResource(R.string.close_button),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                } else {
+                                    query = ""
+                                }
+                            }
+                        }
+                    ) {
+                        Column (
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            Row (
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        text = if (history.isEmpty()) stringResource(R.string.empty_history) else stringResource(R.string.history_title),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(start = 10.dp, top = 10.dp)
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                historyDao.deleteAllSearchHistory()
+                                                history = emptyList()
+                                            }
+                                            query = ""
+                                        },
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.history_delete_text),
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                            val uniqueQueries = history.map { it.query }.toSet()
+                            if (query.isEmpty()) {
+                                LazyColumn (
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    itemsIndexed(uniqueQueries.toList()) { index, newquery ->
+                                        Text(
+                                            text = if (query.isEmpty()) newquery else "",
+                                            modifier = Modifier
+                                                .padding(start = 8.dp)
+                                                .clickable { query = newquery },
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                            performSearch()
+                        }
+                    }
                 }
-            )
+                if (activeNotes.isEmpty()) {
+                    Text(
+                        text = stringResource(id = R.string.home_screen_empty_info),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 17.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = modifier
+            ) {
+                items(items = activeNotes, key = { note -> note.id }) { note ->
+                    val isSelected = selectedNotes.contains(note)
+                    NoteItem(
+                        note = note,
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .combinedClickable(
+                                onLongClick = {
+                                    note.isSelect = true
+                                    selectedNotes = selectedNotes + note
+                                    allSelected = selectedNotes.size == activeNotes.size
+                                    topBarChanged = true
+                                },
+                                onClick = {
+                                    if (topBarChanged) {
+                                        selectedNotes = if (isSelected) {
+                                            selectedNotes - note
+                                        } else {
+                                            selectedNotes + note
+
+                                        }
+                                        note.isSelect = true
+                                        allSelected = selectedNotes.size == activeNotes.size
+                                    } else {
+                                        navigateToDetailPage(note.id)
+                                    }
+                                }
+                            ),
+                        isSelected = isSelected,
+                        onSelectionChange = { isChecked ->
+                            if (isChecked) {
+                                selectedNotes = selectedNotes + note
+                            } else {
+                                selectedNotes = selectedNotes - note
+                            }
+                            allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
+                        },
+                        showCheckbox = topBarChanged
+                    )
+                }
+            }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NoteList(
     noteList: List<Note>,
     onItemClick: (Note) -> Unit,
     modifier: Modifier = Modifier,
+    onDeleteNotes: (List<Note>) -> Unit,
+    onFavoriteNotes: (List<Note>) -> Unit,
+    onDeleteFavorites: (List<Note>) -> Unit,
+    onLongClickActive: () -> Unit
 ) {
     var sortingOption by remember { mutableStateOf(SortingOption.TITLE) }
     val activeNotes = noteList.filter { !it.isDeleted }
     var showMenu by remember { mutableStateOf(false) }
+    var showMenuSelection by remember { mutableStateOf(false) }
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
     var gender by remember {
         mutableStateOf("Sırala")
@@ -372,70 +599,236 @@ private fun NoteList(
     var isDescending by remember {
         mutableStateOf(false)
     }
-    Row (
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
+    var selectedNotes by remember { mutableStateOf(setOf<Note>()) }
+    var showCheckboxes by remember { mutableStateOf(false) }
+    var allSelected by remember { mutableStateOf(false) }
+
+
+    fun toggleSelectAllNotes() {
+        if (allSelected) {
+            selectedNotes = emptySet()
+        } else {
+            selectedNotes = activeNotes.toSet()
+        }
+        allSelected = !allSelected
+    }
+
+    fun deleteSelectedNotes() {
+        onDeleteNotes(selectedNotes.toList())
+        selectedNotes = emptySet()
+        allSelected = false
+        showCheckboxes = false
+    }
+
+    fun moveToFavorites() {
+        onFavoriteNotes(selectedNotes.toList())
+        selectedNotes = emptySet()
+        allSelected = false
+        showCheckboxes = false
+    }
+
+    fun deleteFromFavorites() {
+        onDeleteFavorites(selectedNotes.toList())
+        selectedNotes = emptySet()
+        allSelected = false
+        showCheckboxes = false
+    }
+
+    fun getFavoriteStatusText(): String? {
+        val allSelectedAreFavorites = selectedNotes.all { it.favorite }
+        val noneSelectedAreFavorites = selectedNotes.none { it.favorite }
+
+        return when {
+            selectedNotes.isEmpty() -> null
+            allSelectedAreFavorites -> "Favorilerden Çıkar"
+            noneSelectedAreFavorites -> "Favorilere Ekle"
+            else -> null
+        }
+    }
+    fun hasMixedFavoriteStatus(notes: List<Note>): Boolean {
+        val hasFavorite = notes.any { it.favorite }
+        val hasNonFavorite = notes.any { !it.favorite }
+        return hasFavorite && hasNonFavorite
+    }
+    val favoriteStatusText = getFavoriteStatusText()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        DropdownMenu(
-            offset = DpOffset(x = screenWidthDp - 10.dp, y = -50.dp),
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-        ) {
-            DropdownMenuItem(
-                text = {
-                       Text(
-                           text = stringResource(R.string.sort_drop_down_menu_item_title),
-                           color = MaterialTheme.colorScheme.primary
-                       )
-                },
-                onClick = {
-                    sortingOption = SortingOption.TITLE
-                    gender = "Başlık"
-                    showMenu = false
+        if (showCheckboxes) {
+            Row (
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Row (
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = allSelected,
+                        onCheckedChange = {
+                            toggleSelectAllNotes() // Tüm notları seç veya seçimlerini kaldır
+                        },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = selectedNotes.size.toString(),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 23.sp
+                    )
+                    IconButton(
+                        onClick = {
+
+                            showCheckboxes = false
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = ""
+                        )
+                    }
                 }
-            )
-            DropdownMenuItem(
-                text = {
-                       Text(
-                           text = stringResource(R.string.sort_drop_down_menu_item_created_date),
-                           color = MaterialTheme.colorScheme.primary
-                       )
-                },
-                onClick = {
-                    sortingOption = SortingOption.CREATE_DATE
-                    gender = "Oluşturulma Tarihi"
-                    showMenu = false
+                DropdownMenu(
+                    offset = DpOffset(x = screenWidthDp - 10.dp, y = -50.dp),
+                    expanded = showMenuSelection,
+                    onDismissRequest = { showMenuSelection = false },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Çöp Kutusuna Taşı",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        onClick = {
+                            deleteSelectedNotes()
+                            showMenuSelection = false
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = ""
+                            )
+                        }
+                    )
+                    if(!hasMixedFavoriteStatus(selectedNotes.toList())) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = favoriteStatusText ?: "",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                val isRemovingFromFavorites = selectedNotes.all { it.favorite }
+                                if (isRemovingFromFavorites) {
+                                    deleteFromFavorites()
+                                    onFavoriteNotes(selectedNotes.filter { it.favorite }.map { it.copy(favorite = false) })
+                                } else {
+                                    moveToFavorites()
+                                    onFavoriteNotes(selectedNotes.filter { !it.favorite }.map { it.copy(favorite = true) })
+                                }
+                                showMenuSelection = false
+                            },
+                            trailingIcon = {
+                                val favoriteStatus = getFavoriteStatusText()
+                                when (favoriteStatus) {
+                                    "Favorilere Ekle" -> Icons.Outlined.StarBorder
+                                    "Favorilerden Çıkar" -> Icons.Outlined.Star
+                                    else -> null // Simge göstermek istemiyorsanız
+                                }?.let {
+                                    Icon(
+                                        imageVector = it,
+                                        contentDescription = "",
+                                    )
+                                }
+                            }
+
+                        )
+                    }
                 }
-            )
+                IconButton(
+                    onClick = {
+                        showMenuSelection = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = "",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
-        Text(
-            text = gender,
-            color = MaterialTheme.colorScheme.primary
-        )
-        if (gender == "Sırala") {
-            null
-        } else {
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (!showCheckboxes) {
+            DropdownMenu(
+                offset = DpOffset(x = screenWidthDp - 10.dp, y = -50.dp),
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.sort_drop_down_menu_item_title),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        sortingOption = SortingOption.TITLE
+                        gender = "Başlık"
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.sort_drop_down_menu_item_created_date),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        sortingOption = SortingOption.CREATE_DATE
+                        gender = "Oluşturulma Tarihi"
+                        showMenu = false
+                    }
+                )
+            }
+            Text(
+                text = gender,
+                color = MaterialTheme.colorScheme.primary
+            )
+            if (gender == "Sırala") {
+                null
+            } else {
+                IconButton(
+                    onClick = { isDescending = !isDescending }
+                ) {
+                    Icon(
+                        imageVector = if (isDescending) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             IconButton(
-                onClick = { isDescending = !isDescending }
+                onClick = { showMenu = true }
             ) {
                 Icon(
-                    imageVector = if (isDescending) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                    imageVector = Icons.Filled.Sort,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
-        IconButton(
-            onClick = { showMenu = true }
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Sort,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
     }
+
     val sortedNotes = when {
         sortingOption == SortingOption.TITLE && isDescending ->
             activeNotes.sortedByDescending { it.title }
@@ -446,27 +839,63 @@ private fun NoteList(
         else ->
             activeNotes.sortedByDescending { it.createDate }
     }
-    var isCheck by remember { mutableStateOf(false) }
-    LazyVerticalGrid (
+
+    LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = modifier
     ) {
         items(items = sortedNotes, key = { note -> note.id }) { note ->
+            val isSelected = selectedNotes.contains(note)
             NoteItem(
                 note = note,
                 modifier = Modifier
                     .padding(vertical = 8.dp)
-                    .clickable { onItemClick(note) }
-            )
+                    .combinedClickable(
+                        onLongClick = {
+                            note.isSelect = true
+                            showCheckboxes = true
+                            selectedNotes = selectedNotes + note
+                            allSelected = selectedNotes.size == activeNotes.size
+                            onLongClickActive()
+                        },
+                        onClick = {
+                            if (showCheckboxes) {
+                                selectedNotes = if (isSelected) {
+                                    selectedNotes - note
+                                } else {
+                                    selectedNotes + note
 
+                                }
+                                note.isSelect = true
+                                allSelected = selectedNotes.size == activeNotes.size
+                            } else {
+                                onItemClick(note)
+                            }
+                        }
+                    ),
+                isSelected = isSelected,
+                onSelectionChange = { isChecked ->
+                    if (isChecked) {
+                        selectedNotes = selectedNotes + note
+                    } else {
+                        selectedNotes = selectedNotes - note
+                    }
+                    allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
+                },
+                showCheckbox = showCheckboxes
+            )
         }
     }
 }
+
 
 @Composable
 private fun NoteItem(
     note: Note,
     modifier: Modifier = Modifier,
+    isSelected: Boolean = false,
+    onSelectionChange: (Boolean) -> Unit = {},
+    showCheckbox: Boolean = false // Checkbox'ın görünüp görünmeyeceğini kontrol eden parametre
 ) {
     val iconTint = if (note.favorite) colorResource(R.color.orange) else Color.Transparent
     Column {
@@ -480,6 +909,13 @@ private fun NoteItem(
                     shape = RoundedCornerShape(10.dp)
                 )
         ) {
+            if (showCheckbox) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = onSelectionChange,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
             Row (
                 modifier = Modifier
                     .fillMaxWidth()
@@ -537,6 +973,8 @@ private fun NoteItem(
         }
     }
 }
+
+
 
 @Composable
 fun formatDate(date: LocalDateTime): String {

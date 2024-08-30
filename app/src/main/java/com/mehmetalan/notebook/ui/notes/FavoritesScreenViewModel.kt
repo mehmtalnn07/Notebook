@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class FavoritesScreenViewModel(
     savedStateHandle: SavedStateHandle,
@@ -23,6 +24,19 @@ class FavoritesScreenViewModel(
                 started = SharingStarted.WhileSubscribed(TIMEOUT_MILLIS),
                 initialValue = FavoriteNoteUiState()
             )
+
+    fun deleteNotes(noteIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.moveToTrashMultiple(noteIds)
+        }
+    }
+
+    fun deleteFromFavorites(noteIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.deleteFromFavorites(noteIds)
+        }
+    }
+
     companion object {
         private const val TIMEOUT_MILLIS = 5_000L
     }

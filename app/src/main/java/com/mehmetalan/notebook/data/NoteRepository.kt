@@ -22,4 +22,14 @@ interface NoteRepository {
 
     suspend fun moveToNotFavorite(id: Int)
 
+    suspend fun moveToFavoriteMultiple(ids: List<Int>)
+
+    suspend fun deleteFromFavorites(ids: List<Int>)
+
+    suspend fun moveToTrashMultiple(ids: List<Int>)
+
+    suspend fun moveToListMultiple(ids: List<Int>)
+
+    suspend fun deleteNotesMultiple(noteList: List<Note>)
+
 }

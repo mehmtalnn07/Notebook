@@ -8,9 +8,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class TrashScreenViewModel(
-    noteRepository: NoteRepository
+    private val noteRepository: NoteRepository
 ): ViewModel() {
     val trashUiState: StateFlow<TrashUiState> =
         noteRepository.getAllNotesStream().map { TrashUiState(it) }
@@ -19,6 +20,16 @@ class TrashScreenViewModel(
                 started = SharingStarted.WhileSubscribed(TIMEOUT_MILLIS),
                 initialValue = TrashUiState()
             )
+    fun deleteNotesMultiple(noteList: List<Note>) {
+        viewModelScope.launch {
+            noteRepository.deleteNotesMultiple(noteList)
+        }
+    }
+    fun recoveryNotesMultiple(notesIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.moveToListMultiple(notesIds)
+        }
+    }
     companion object {
         private const val TIMEOUT_MILLIS = 5_000L
     }

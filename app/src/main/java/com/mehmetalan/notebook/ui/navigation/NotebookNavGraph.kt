@@ -1,5 +1,6 @@
 package com.mehmetalan.notebook.ui.navigation
 
+
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -26,10 +27,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -63,6 +61,7 @@ import com.mehmetalan.notebook.ui.notes.NoteDetailsScreen
 import com.mehmetalan.notebook.ui.notes.TrashScreen
 import com.mehmetalan.notebook.ui.notes.TrashScreenDestination
 import com.mehmetalan.notebook.ui.notes.TrashScreenViewModel
+
 import kotlinx.coroutines.launch
 
 @SuppressLint("StateFlowValueCalledInComposition")

@@ -22,4 +22,15 @@ class OfflineNoteRepository(private val noteDao: NoteDao): NoteRepository {
 
     override suspend fun moveToNotFavorite(id: Int) = noteDao.moveToNotFavorite(id)
 
+    override suspend fun moveToFavoriteMultiple(ids: List<Int>) = noteDao.moveToFavoriteMultiple(ids)
+
+    override suspend fun deleteFromFavorites(ids: List<Int>) = noteDao.deleteFromFavorites(ids)
+
+    override suspend fun moveToTrashMultiple(ids: List<Int>) = noteDao.moveToTrashMultiple(ids)
+
+    override suspend fun moveToListMultiple(ids: List<Int>) = noteDao.moveToListMultiple(ids)
+
+    override suspend fun deleteNotesMultiple(noteList: List<Note>) = noteDao.deleteNotesMultiple(noteList)
+
+
 }

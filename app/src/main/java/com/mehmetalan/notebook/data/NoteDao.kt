@@ -28,11 +28,26 @@ interface NoteDao {
     @Query("UPDATE notes SET favorite = 0 WHERE id = :id")
     suspend fun moveToNotFavorite(id: Int)
 
+    @Query("UPDATE notes SET favorite = 1 WHERE id IN (:ids)")
+    suspend fun moveToFavoriteMultiple(ids: List<Int>)
+
+    @Query("UPDATE notes SET favorite = 0 WHERE id IN (:ids)")
+    suspend fun deleteFromFavorites(ids: List<Int>)
+
+    @Query("UPDATE notes SET isDeleted = 1 WHERE id IN (:ids)")
+    suspend fun moveToTrashMultiple(ids: List<Int>)
+
+    @Query("UPDATE notes SET isDeleted = 0 WHERE id IN (:ids)")
+    suspend fun moveToListMultiple(ids: List<Int>)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(note: Note)
 
     @Delete
     suspend fun delete(note: Note)
+
+    @Delete
+    suspend fun deleteNotesMultiple(noteList: List<Note>)
 
     @Update
     suspend fun update(note: Note)

@@ -9,7 +9,7 @@ data class Note(
     var isSelect: Boolean = false,
     val createDate: LocalDateTime,
     var favorite: Boolean,
-    val isDeleted: Boolean = false,
+    var isDeleted: Boolean = false,
     val title: String,
     val content: String,
     @PrimaryKey(autoGenerate = true)

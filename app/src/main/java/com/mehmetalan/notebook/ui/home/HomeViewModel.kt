@@ -8,9 +8,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    noteRepository: NoteRepository,
+    private val noteRepository: NoteRepository
 ) : ViewModel() {
 
     val homeUiState: StateFlow<HomeUiState> =
@@ -21,11 +22,29 @@ class HomeViewModel(
                 initialValue = HomeUiState()
             )
 
+    fun moveToFavoriteMultiple(noteIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.moveToFavoriteMultiple(noteIds)
+        }
+    }
+
+    fun deleteFromFavorites(noteIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.deleteFromFavorites(noteIds)
+        }
+    }
+
+    fun deleteNotes(noteIds: List<Int>) {
+        viewModelScope.launch {
+            noteRepository.moveToTrashMultiple(noteIds)
+        }
+    }
+
     companion object {
         private const val TIMEOUT_MILLIS = 5_000L
     }
 }
 
 data class HomeUiState(
-    val noteList: List<Note> = listOf(),
+    val noteList: List<Note> = listOf()
 )
