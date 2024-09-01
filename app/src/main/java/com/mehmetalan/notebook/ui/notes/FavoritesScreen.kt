@@ -10,6 +10,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Close
@@ -171,8 +173,8 @@ fun FavoritesScreen(
                             onClick = onBackButtonPressed
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = stringResource(R.string.back_button),
+                                imageVector = Icons.Default.ArrowBackIosNew,
+                                contentDescription = "Back Button",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -186,123 +188,130 @@ fun FavoritesScreen(
             )
         }
     ) {innerPadding ->
-        Column (
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            DropdownMenu(
-                offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
-                expanded = showDropDownMenu,
-                onDismissRequest = { showDropDownMenu = false },
+        if(activeNotes.isEmpty()) {
+            Column (
+                modifier = Modifier
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Çöp Kutusuna Taşı",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    onClick = {
-                        val notesToDeleteIds = selectedNotes.map { it.id }
-                        favoriteViewModel.deleteNotes(noteIds = notesToDeleteIds)
-                        showDropDownMenu = false
-                        selectedNotes = emptySet()
-                        topBarChanged = false
-                        scope.launch {
-                            val result = snackBarHostState
-                                .showSnackbar(
-                                    message = "${selectedNotes.size} adet not silindi",
-                                    actionLabel = "Geri Yükle"
-                                )
-                            when (result) {
-                                SnackbarResult.ActionPerformed -> {
-                                    Toast.makeText(context, "Action a tıklandı", Toast.LENGTH_SHORT).show()
-                                }
-                                SnackbarResult.Dismissed -> {
-                                    Toast.makeText(context, "snackbar kendi kendine kapandı", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = ""
-                        )
-                    }
+                Icon(
+                    imageVector = Icons.Outlined.StarBorder,
+                    contentDescription = "Favorite Icon",
+                    modifier = Modifier
+                        .size(200.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(text = "Favorilerden Çıkar")
-                    },
-                    onClick = {
-                        val notesToDeleteIds = selectedNotes.map { it.id }
-                        favoriteViewModel.deleteFromFavorites(notesToDeleteIds)
-                        showDropDownMenu = false
-                        topBarChanged = false
-                        selectedNotes = emptySet()
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = ""
-                        )
-                    }
+                Spacer(
+                    modifier = Modifier
+                        .size(20.dp)
                 )
-            }
-            if (activeNotes.isEmpty()) {
                 Text(
-                    text = "Favori Notunuz Bulunmamaktadır",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.ExtraBold
+                    text = stringResource(id = R.string.favorite_screen_empty_info),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
-            LazyVerticalGrid (
-                columns = GridCells.Fixed(2),
-                modifier = modifier
+        } else {
+            Column (
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                items(items = activeNotes, key = { note -> note.id }) { note ->
-                    val isSelected = selectedNotes.contains(note)
-                    NoteItem(
-                        note = note,
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .combinedClickable(
-                                onLongClick = {
-                                    note.isSelect = true
-                                    selectedNotes = selectedNotes + note
-                                    allSelected = selectedNotes.size == activeNotes.size
-                                    topBarChanged = true
-                                },
-                                onClick = {
-                                    if (topBarChanged) {
-                                        selectedNotes = if (isSelected) {
-                                            selectedNotes - note
-                                        } else {
-                                            selectedNotes + note
-
-                                        }
-                                        note.isSelect = true
-                                        allSelected = selectedNotes.size == activeNotes.size
-                                    } else {
-                                        navigateToDetailScreen(note.id)
-                                    }
-                                }
-                            ),
-                        isSelected = isSelected,
-                        onSelectionChange = { isChecked ->
-                            if (isChecked) {
-                                selectedNotes = selectedNotes + note
-                            } else {
-                                selectedNotes = selectedNotes - note
-                            }
-                            allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
+                DropdownMenu(
+                    offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
+                    expanded = showDropDownMenu,
+                    onDismissRequest = { showDropDownMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(id = R.string.moveToTrash),
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         },
-                        showCheckbox = topBarChanged
+                        onClick = {
+                            val notesToDeleteIds = selectedNotes.map { it.id }
+                            favoriteViewModel.deleteNotes(noteIds = notesToDeleteIds)
+                            showDropDownMenu = false
+                            selectedNotes = emptySet()
+                            topBarChanged = false
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = "Trash Icon"
+                            )
+                        }
                     )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(id = R.string.delete_from_favorite)
+                            )
+                        },
+                        onClick = {
+                            val notesToDeleteIds = selectedNotes.map { it.id }
+                            favoriteViewModel.deleteFromFavorites(notesToDeleteIds)
+                            showDropDownMenu = false
+                            topBarChanged = false
+                            selectedNotes = emptySet()
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = "Favorite Icon"
+                            )
+                        }
+                    )
+                }
+                LazyVerticalGrid (
+                    columns = GridCells.Fixed(2),
+                    modifier = modifier
+                ) {
+                    items(items = activeNotes, key = { note -> note.id }) { note ->
+                        val isSelected = selectedNotes.contains(note)
+                        NoteItem(
+                            note = note,
+                            modifier = Modifier
+                                .padding(vertical = 8.dp)
+                                .combinedClickable(
+                                    onLongClick = {
+                                        note.isSelect = true
+                                        selectedNotes = selectedNotes + note
+                                        allSelected = selectedNotes.size == activeNotes.size
+                                        topBarChanged = true
+                                    },
+                                    onClick = {
+                                        if (topBarChanged) {
+                                            selectedNotes = if (isSelected) {
+                                                note.isSelect = false
+                                                selectedNotes - note
+                                            } else {
+                                                note.isSelect = true
+                                                selectedNotes + note
+                                            }
+                                            allSelected = selectedNotes.size == activeNotes.size
+                                        } else {
+                                            navigateToDetailScreen(note.id)
+                                        }
+                                    }
+                                ),
+                            isSelected = isSelected,
+                            onSelectionChange = { isChecked ->
+                                if (isChecked) {
+                                    selectedNotes = selectedNotes + note
+                                } else {
+                                    selectedNotes = selectedNotes - note
+                                }
+                                allSelected = selectedNotes.size == activeNotes.size
+                            },
+                            showCheckbox = topBarChanged
+                        )
+                    }
                 }
             }
         }
@@ -313,19 +322,19 @@ fun FavoritesScreen(
 private fun NoteItem(
     note: Note,
     modifier: Modifier = Modifier,
-    isSelected: Boolean,
+    isSelected: Boolean = false,
     onSelectionChange: (Boolean) -> Unit = {},
-    showCheckbox: Boolean,
+    showCheckbox: Boolean = false
 ) {
     val iconTint = if (note.favorite) colorResource(R.color.orange) else Color.Transparent
     Column {
         OutlinedCard (
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = modifier
                 .padding(start = 10.dp, end = 10.dp)
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary,
+                    width = if (isSelected) 5.dp else 0.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(10.dp)
                 )
         ) {

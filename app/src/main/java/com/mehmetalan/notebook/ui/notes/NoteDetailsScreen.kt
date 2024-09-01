@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mehmetalan.notebook.ui.navigation.NavigationDestination
@@ -77,7 +79,8 @@ fun NoteDetailsScreen(
                      title = {
                          Text(
                              text = NoteDetailsDestination.titleRes,
-                             color = MaterialTheme.colorScheme.primary
+                             color = MaterialTheme.colorScheme.primary,
+                             fontWeight = FontWeight.ExtraBold
                          )
                              },
                      navigationIcon = {
@@ -85,8 +88,8 @@ fun NoteDetailsScreen(
                              onClick = navigateBack
                          ) {
                              Icon(
-                                 imageVector = Icons.Default.ArrowBack,
-                                 contentDescription = stringResource(R.string.back_button),
+                                 imageVector = Icons.Default.ArrowBackIosNew,
+                                 contentDescription = "Back Button",
                                  tint = MaterialTheme.colorScheme.primary
                              )
                          }
@@ -114,7 +117,7 @@ fun NoteDetailsScreen(
                          ) {
                              Icon(
                                  imageVector = Icons.Filled.Star,
-                                 contentDescription = null,
+                                 contentDescription = "Favorite Icon",
                                  tint = if (isFavorite) colorResource(R.color.orange) else MaterialTheme.colorScheme.primary
                              )
                          }
@@ -125,7 +128,7 @@ fun NoteDetailsScreen(
                          ) {
                              Icon(
                                  imageVector = Icons.Filled.Delete,
-                                 contentDescription = stringResource(R.string.delete_button_note_detail),
+                                 contentDescription = "Delete Icon",
                                  tint = MaterialTheme.colorScheme.primary
                              )
                          }
@@ -144,7 +147,7 @@ fun NoteDetailsScreen(
            ) {
                Icon(
                    imageVector = Icons.Default.Save,
-                   contentDescription = stringResource(R.string.save_button),
+                   contentDescription = "Save Button",
                    tint = MaterialTheme.colorScheme.primary
                )
            }

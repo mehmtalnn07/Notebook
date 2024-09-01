@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -82,8 +83,8 @@ fun FavoriteNoteDetailsScreen(
                         onClick = onBackPressed
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.back_button),
+                            imageVector = Icons.Default.ArrowBackIosNew,
+                            contentDescription = "Back Button",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -111,7 +112,7 @@ fun FavoriteNoteDetailsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
-                            contentDescription = stringResource(R.string.favorite_button),
+                            contentDescription = "Favorite Button",
                             tint = if (isFavorite) colorResource(R.color.orange) else MaterialTheme.colorScheme.primary
                         )
                     }
@@ -130,7 +131,7 @@ fun FavoriteNoteDetailsScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Save,
-                    contentDescription = stringResource(R.string.save_button),
+                    contentDescription = "Save Button",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

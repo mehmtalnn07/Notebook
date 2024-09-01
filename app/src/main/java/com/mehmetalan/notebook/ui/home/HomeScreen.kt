@@ -5,8 +5,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
-import android.util.Log
-import android.widget.Space
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -28,7 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,27 +34,21 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.HorizontalSplit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VerticalSplit
-import androidx.compose.material.icons.outlined.BorderVertical
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.HorizontalRule
-import androidx.compose.material.icons.outlined.HorizontalSplit
-import androidx.compose.material.icons.outlined.More
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.VerticalSplit
-import androidx.compose.material3.Button
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
@@ -71,15 +63,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,7 +80,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -105,14 +93,13 @@ import com.mehmetalan.notebook.data.Note
 import com.mehmetalan.notebook.ui.navigation.NavigationDestination
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mehmetalan.notebook.R
-import com.mehmetalan.notebook.data.NoteRepository
 import com.mehmetalan.notebook.history.History
 import com.mehmetalan.notebook.history.HistoryDatabase
 import com.mehmetalan.notebook.ui.AppViewModelProvider
-import com.mehmetalan.notebook.ui.notes.TrashScreenViewModel
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.time.LocalDateTime
+
 
 object HomeDestination : NavigationDestination {
     override val route = "home"
@@ -139,7 +126,6 @@ fun HomeScreen(
     var allSelected by remember { mutableStateOf(false) }
     val activeNotes = homeUiState.noteList.filter { !it.isDeleted }
     var showDropDownMenu by remember { mutableStateOf(false) }
-    var isIconChanged by remember { mutableStateOf(false) }
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
     var query by remember {
         mutableStateOf("")
@@ -149,9 +135,7 @@ fun HomeScreen(
     }
     val context = LocalContext.current
     val historyDao = remember { HistoryDatabase.getDatabase(context).historyDao() }
-    var history by remember {
-        mutableStateOf<List<History>>(emptyList())
-    }
+    var history by remember { mutableStateOf<List<History>>(emptyList()) }
 
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -164,9 +148,6 @@ fun HomeScreen(
             }
         }
     }
-
-
-
 
     fun toggleSelectAllNotes() {
         if (allSelected) {
@@ -233,7 +214,9 @@ fun HomeScreen(
                 CenterAlignedTopAppBar(
                     title = { 
                         Text(
-                            text = "Not Seç"
+                            text = stringResource(id = R.string.home_screen_note_selected),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     },
                     navigationIcon = {
@@ -290,19 +273,9 @@ fun HomeScreen(
                     title = {
                         Text(
                             text = HomeDestination.titleRes,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.ExtraBold
                         )
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = { isIconChanged = !isIconChanged } // İkonun değişmesini sağlıyor
-                        ) {
-                            Icon(
-                                imageVector = if (isIconChanged) Icons.Filled.VerticalSplit else Icons.Filled.HorizontalSplit, // İkonu değiştiriyor
-                                contentDescription = "",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
                     }
                 )
             }
@@ -315,7 +288,7 @@ fun HomeScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.add_button),
+                    contentDescription = "Add Button",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -326,290 +299,310 @@ fun HomeScreen(
             )
         }
     ) {innerPadding ->
-        Column (
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            DropdownMenu(
-                offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
-                expanded = showDropDownMenu,
-                onDismissRequest = { showDropDownMenu = false },
+        if (activeNotes.isEmpty()) {
+            Column (
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Çöp Kutusuna Taşı",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    onClick = {
-                        val notesToDeleteIds = selectedNotes.map { it.id }
-                        viewModel.deleteNotes(noteIds = notesToDeleteIds)
-                        showDropDownMenu = false
-                        recoveryNoteList = selectedNotes
-                        selectedNotes = emptySet()
-                        topBarChanged = false
-                        scope.launch {
-                            val result = snackBarHostState
-                                .showSnackbar(
-                                    message = "Notlar Silindi",
-                                    actionLabel = "Geri Yükle"
-                                )
-                            when (result) {
-                                SnackbarResult.ActionPerformed -> {
-                                    val recoveryNotesIds = recoveryNoteList.map { it.id }
-                                    viewModel.recoveryNotesMultiple(notesIds = recoveryNotesIds)
-                                    recoveryNoteList = emptySet()
-                                }
-                                SnackbarResult.Dismissed -> {
-                                    Toast.makeText(context, "snackbar kendi kendine kapandı", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = ""
-                        )
-                    }
+                Icon(
+                    imageVector = Icons.Outlined.NoteAdd,
+                    contentDescription = "Note Add Icon",
+                    modifier = Modifier
+                        .size(200.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
-                if(!hasMixedFavoriteStatus(selectedNotes.toList())) {
+                Spacer(
+                    modifier = Modifier
+                        .size(20.dp)
+                )
+                Text(
+                    text = stringResource(id = R.string.home_screen_empty_info),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp
+                )
+            }
+        } else {
+            Column (
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                DropdownMenu(
+                    offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
+                    expanded = showDropDownMenu,
+                    onDismissRequest = { showDropDownMenu = false },
+                ) {
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = favoriteStatusText ?: "",
+                                text = stringResource(id = R.string.moveToTrash),
                                 color = MaterialTheme.colorScheme.primary
                             )
                         },
                         onClick = {
-                            val isRemovingFromFavorites = selectedNotes.all { it.favorite }
-                            if (isRemovingFromFavorites) {
-                                val notesToFavoritesIds = selectedNotes.map { it.id }
-                                viewModel.deleteFromFavorites(notesToFavoritesIds)
-                            } else {
-                                val notesToFavoriteIds = selectedNotes.map { it.id }
-                                viewModel.moveToFavoriteMultiple(noteIds = notesToFavoriteIds)
-                            }
-                            selectedNotes = emptySet()
+                            val notesToDeleteIds = selectedNotes.map { it.id }
+                            viewModel.deleteNotes(noteIds = notesToDeleteIds)
                             showDropDownMenu = false
+                            recoveryNoteList = selectedNotes
+                            selectedNotes = emptySet()
                             topBarChanged = false
                             scope.launch {
                                 val result = snackBarHostState
                                     .showSnackbar(
-                                        message = "Notlar Favorilere Eklendi",
+                                        message = "Notlar Silindi",
+                                        actionLabel = "Geri Yükle"
                                     )
                                 when (result) {
                                     SnackbarResult.ActionPerformed -> {
+                                        val recoveryNotesIds = recoveryNoteList.map { it.id }
+                                        viewModel.recoveryNotesMultiple(notesIds = recoveryNotesIds)
+                                        recoveryNoteList = emptySet()
                                     }
                                     SnackbarResult.Dismissed -> {
-
                                     }
                                 }
                             }
                         },
                         trailingIcon = {
-                            val favoriteStatus = getFavoriteStatusText()
-                            when (favoriteStatus) {
-                                "Favorilere Ekle" -> Icons.Outlined.StarBorder
-                                "Favorilerden Çıkar" -> Icons.Outlined.Star
-                                else -> null
-                            }?.let {
-                                Icon(
-                                    imageVector = it,
-                                    contentDescription = "",
-                                )
-                            }
-                        }
-
-                    )
-                }
-            }
-            Column (
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (activeNotes.isNotEmpty() and !topBarChanged) {
-                    SearchBar(
-                        modifier = Modifier.clip(shape = RoundedCornerShape(20.dp)),
-                        query = query,
-                        onQueryChange = { newQuery -> query = newQuery },
-                        onSearch = { newQuery ->
-                            query = newQuery
-                            scope.launch {
-                                historyDao.insertSearchHistory(History(query = newQuery))
-                                history = historyDao.getAllSearchHistory()
-                            }
-                        },
-                        active = active,
-                        onActiveChange = { active = it },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.search),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        leadingIcon = {
                             Icon(
-                                imageVector = Icons.Filled.Search,
-                                contentDescription = stringResource(R.string.search_button),
-                                tint = MaterialTheme.colorScheme.primary
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = "Trash Icon"
                             )
-                        },
-                        trailingIcon = {
-                            Row {
-                                if (active) {
-                                    IconButton(
-                                        onClick = {
-                                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                                            intent.putExtra(
-                                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                            )
-                                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                                            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Search")
-                                            try {
-                                                speechLauncher.launch(intent)
-                                            } catch (e: Exception) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Your device does not support speech recognition",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Mic,
-                                            contentDescription = stringResource(R.string.microphone_button),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                                if (active) {
-                                    IconButton(
-                                        onClick = {
-                                            query = ""
-                                            active = false
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Close,
-                                            contentDescription = stringResource(R.string.close_button),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                } else {
-                                    query = ""
-                                }
-                            }
                         }
-                    ) {
-                        Column (
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            Row (
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                if (query.isEmpty()) {
-                                    Text(
-                                        text = if (history.isEmpty()) stringResource(R.string.empty_history) else stringResource(R.string.history_title),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(start = 10.dp, top = 10.dp)
+                    )
+                    if(!hasMixedFavoriteStatus(selectedNotes.toList())) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = favoriteStatusText ?: "",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                val isRemovingFromFavorites = selectedNotes.all { it.favorite }
+                                if (isRemovingFromFavorites) {
+                                    val notesToFavoritesIds = selectedNotes.map { it.id }
+                                    viewModel.deleteFromFavorites(notesToFavoritesIds)
+                                } else {
+                                    val notesToFavoriteIds = selectedNotes.map { it.id }
+                                    viewModel.moveToFavoriteMultiple(noteIds = notesToFavoriteIds)
+                                }
+                                selectedNotes = emptySet()
+                                showDropDownMenu = false
+                                topBarChanged = false
+                                scope.launch {
+                                    val result = snackBarHostState
+                                        .showSnackbar(
+                                            message = "Notlar Favorilere Eklendi",
+                                        )
+                                    when (result) {
+                                        SnackbarResult.ActionPerformed -> {
+                                        }
+                                        SnackbarResult.Dismissed -> {
+
+                                        }
+                                    }
+                                }
+                            },
+                            trailingIcon = {
+                                val favoriteStatus = getFavoriteStatusText()
+                                when (favoriteStatus) {
+                                    "Favorilere Ekle" -> Icons.Outlined.StarBorder
+                                    "Favorilerden Çıkar" -> Icons.Outlined.Star
+                                    else -> null
+                                }?.let {
+                                    Icon(
+                                        imageVector = it,
+                                        contentDescription = "Favorite Icon",
                                     )
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                historyDao.deleteAllSearchHistory()
-                                                history = emptyList()
+                                }
+                            }
+
+                        )
+                    }
+                }
+                Column (
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (activeNotes.isNotEmpty() and !topBarChanged) {
+                        SearchBar(
+                            modifier = Modifier.clip(shape = RoundedCornerShape(20.dp)),
+                            query = query,
+                            onQueryChange = { newQuery -> query = newQuery },
+                            onSearch = { newQuery ->
+                                query = newQuery
+                                scope.launch {
+                                    historyDao.insertSearchHistory(History(query = newQuery))
+                                    history = historyDao.getAllSearchHistory()
+                                }
+                            },
+                            active = active,
+                            onActiveChange = { active = it },
+                            placeholder = {
+                                Text(
+                                    text = stringResource(R.string.search),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = "Search Icon",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingIcon = {
+                                Row {
+                                    if (active) {
+                                        IconButton(
+                                            onClick = {
+                                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                                intent.putExtra(
+                                                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                                )
+                                                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Search")
+                                                try {
+                                                    speechLauncher.launch(intent)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Cihazınız konuşma tanıma özelliğini desteklemiyor",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
                                             }
-                                            query = ""
-                                        },
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.history_delete_text),
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Mic,
+                                                contentDescription = "Microphone Icon",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    if (active) {
+                                        IconButton(
+                                            onClick = {
+                                                query = ""
+                                                active = false
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Close,
+                                                contentDescription = "Close Search Icon",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    } else {
+                                        query = ""
                                     }
                                 }
                             }
-                            val uniqueQueries = history.map { it.query }.toSet()
-                            if (query.isEmpty()) {
-                                LazyColumn (
-                                    modifier = Modifier.fillMaxSize()
+                        ) {
+                            Column (
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                Row (
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    itemsIndexed(uniqueQueries.toList()) { index, newquery ->
+                                    if (query.isEmpty()) {
                                         Text(
-                                            text = if (query.isEmpty()) newquery else "",
-                                            modifier = Modifier
-                                                .padding(start = 8.dp)
-                                                .clickable { query = newquery },
+                                            text = if (history.isEmpty()) stringResource(R.string.empty_history) else stringResource(R.string.history_title),
                                             color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(start = 10.dp, top = 10.dp)
                                         )
+                                        TextButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    historyDao.deleteAllSearchHistory()
+                                                    history = emptyList()
+                                                }
+                                                query = ""
+                                            },
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.history_delete_text),
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
                                     }
                                 }
+                                val uniqueQueries = history.map { it.query }.toSet()
+                                if (query.isEmpty()) {
+                                    LazyColumn (
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        itemsIndexed(uniqueQueries.toList()) { index, newquery ->
+                                            Text(
+                                                text = if (query.isEmpty()) newquery else "",
+                                                modifier = Modifier
+                                                    .padding(start = 8.dp)
+                                                    .clickable { query = newquery },
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    }
+                                }
+                                performSearch()
                             }
-                            performSearch()
                         }
                     }
                 }
-                if (activeNotes.isEmpty()) {
-                    Text(
-                        text = stringResource(id = R.string.home_screen_empty_info),
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 17.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = modifier
-            ) {
-                items(items = activeNotes, key = { note -> note.id }) { note ->
-                    val isSelected = selectedNotes.contains(note)
-                    NoteItem(
-                        note = note,
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .combinedClickable(
-                                onLongClick = {
-                                    note.isSelect = true
-                                    selectedNotes = selectedNotes + note
-                                    allSelected = selectedNotes.size == activeNotes.size
-                                    topBarChanged = true
-                                },
-                                onClick = {
-                                    if (topBarChanged) {
-                                        selectedNotes = if (isSelected) {
-                                            selectedNotes - note
-                                        } else {
-                                            selectedNotes + note
-
-                                        }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = modifier
+                ) {
+                    items(items = activeNotes, key = { note -> note.id }) { note ->
+                        val isSelected = selectedNotes.contains(note)
+                        NoteItem(
+                            note = note,
+                            modifier = Modifier
+                                .padding(vertical = 8.dp)
+                                .combinedClickable(
+                                    onLongClick = {
                                         note.isSelect = true
+                                        selectedNotes = selectedNotes + note
                                         allSelected = selectedNotes.size == activeNotes.size
-                                    } else {
-                                        navigateToDetailPage(note.id)
+                                        topBarChanged = true
+                                    },
+                                    onClick = {
+                                        if (topBarChanged) {
+                                            selectedNotes = if (isSelected) {
+                                                note.isSelect = false
+                                                selectedNotes - note
+                                            } else {
+                                                note.isSelect = true
+                                                selectedNotes + note
+
+                                            }
+                                            note.isSelect = true
+                                            allSelected = selectedNotes.size == activeNotes.size
+                                        } else {
+                                            navigateToDetailPage(note.id)
+                                        }
                                     }
+                                ),
+                            isSelected = isSelected,
+                            onSelectionChange = { isChecked ->
+                                if (isChecked) {
+                                    selectedNotes = selectedNotes + note
+                                } else {
+                                    selectedNotes = selectedNotes - note
                                 }
-                            ),
-                        isSelected = isSelected,
-                        onSelectionChange = { isChecked ->
-                            if (isChecked) {
-                                selectedNotes = selectedNotes + note
-                            } else {
-                                selectedNotes = selectedNotes - note
-                            }
-                            allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
-                        },
-                        showCheckbox = topBarChanged
-                    )
+                                allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
+                            },
+                            showCheckbox = topBarChanged
+                        )
+                    }
                 }
             }
         }
@@ -632,12 +625,8 @@ private fun NoteList(
     var showMenu by remember { mutableStateOf(false) }
     var showMenuSelection by remember { mutableStateOf(false) }
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-    var gender by remember {
-        mutableStateOf("Sırala")
-    }
-    var isDescending by remember {
-        mutableStateOf(false)
-    }
+    var gender by remember { mutableStateOf("Sırala") }
+    var isDescending by remember { mutableStateOf(false) }
     var selectedNotes by remember { mutableStateOf(setOf<Note>()) }
     var showCheckboxes by remember { mutableStateOf(false) }
     var allSelected by remember { mutableStateOf(false) }
@@ -710,7 +699,7 @@ private fun NoteList(
                     Checkbox(
                         checked = allSelected,
                         onCheckedChange = {
-                            toggleSelectAllNotes() // Tüm notları seç veya seçimlerini kaldır
+                            toggleSelectAllNotes()
                         },
                         modifier = Modifier.padding(end = 8.dp)
                     )
@@ -721,13 +710,12 @@ private fun NoteList(
                     )
                     IconButton(
                         onClick = {
-
                             showCheckboxes = false
                         }
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
-                            contentDescription = ""
+                            contentDescription = "Close Button"
                         )
                     }
                 }
@@ -739,7 +727,7 @@ private fun NoteList(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = "Çöp Kutusuna Taşı",
+                                text = stringResource(id = R.string.moveToTrash),
                                 color = MaterialTheme.colorScheme.primary
                             )
                         },
@@ -750,7 +738,7 @@ private fun NoteList(
                         trailingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = ""
+                                contentDescription = "Trash Button"
                             )
                         }
                     )
@@ -778,11 +766,11 @@ private fun NoteList(
                                 when (favoriteStatus) {
                                     "Favorilere Ekle" -> Icons.Outlined.StarBorder
                                     "Favorilerden Çıkar" -> Icons.Outlined.Star
-                                    else -> null // Simge göstermek istemiyorsanız
+                                    else -> null
                                 }?.let {
                                     Icon(
                                         imageVector = it,
-                                        contentDescription = "",
+                                        contentDescription = "Favorite Icon",
                                     )
                                 }
                             }
@@ -797,7 +785,7 @@ private fun NoteList(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.MoreVert,
-                        contentDescription = "",
+                        contentDescription = "More Vert Icon",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -919,7 +907,7 @@ private fun NoteList(
                     } else {
                         selectedNotes = selectedNotes - note
                     }
-                    allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
+                    allSelected = selectedNotes.size == activeNotes.size
                 },
                 showCheckbox = showCheckboxes
             )
@@ -934,17 +922,17 @@ private fun NoteItem(
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
     onSelectionChange: (Boolean) -> Unit = {},
-    showCheckbox: Boolean = false // Checkbox'ın görünüp görünmeyeceğini kontrol eden parametre
+    showCheckbox: Boolean = false
 ) {
     val iconTint = if (note.favorite) colorResource(R.color.orange) else Color.Transparent
     Column {
         OutlinedCard (
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = modifier
                 .padding(start = 10.dp, end = 10.dp)
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary,
+                    width = if (isSelected) 5.dp else 0.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(10.dp)
                 )
         ) {
@@ -1027,5 +1015,3 @@ enum class SortingOption {
     CREATE_DATE,
     TITLE
 }
-
-

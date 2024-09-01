@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class FavoritesScreenViewModel(
-    savedStateHandle: SavedStateHandle,
+    noteRepository1: SavedStateHandle,
     private val noteRepository: NoteRepository
 ): ViewModel() {
     val favoriteUiState: StateFlow<FavoriteNoteUiState> =

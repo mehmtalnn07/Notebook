@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mehmetalan.notebook.ui.navigation.NavigationDestination
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -58,7 +60,8 @@ fun NoteAddScreen(
                 title = {
                     Text(
                         text = NoteAddScreenDestination.titleRes,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.ExtraBold
                     )
                         },
                 navigationIcon = {
@@ -66,8 +69,8 @@ fun NoteAddScreen(
                         onClick = navigateBack
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.back_button),
+                            imageVector = Icons.Default.ArrowBackIosNew,
+                            contentDescription = "Back Button",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -87,7 +90,7 @@ fun NoteAddScreen(
             ) {
                 Icon(
                     Icons.Filled.Check,
-                    contentDescription = stringResource(R.string.save_button),
+                    contentDescription = "Save Button",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

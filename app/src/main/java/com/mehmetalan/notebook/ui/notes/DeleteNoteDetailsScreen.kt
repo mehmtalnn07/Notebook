@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material3.AlertDialog
@@ -77,8 +78,8 @@ fun DeletedNoteDetailsScreen(
                                      onClick = { navigateBack() }
                                  ) {
                                      Icon(
-                                         imageVector = Icons.Filled.ArrowBack,
-                                         contentDescription = stringResource(R.string.back_button),
+                                         imageVector = Icons.Filled.ArrowBackIosNew,
+                                         contentDescription = "Back Button",
                                          tint = MaterialTheme.colorScheme.primary
                                      )
                                  }
@@ -95,7 +96,7 @@ fun DeletedNoteDetailsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.RestoreFromTrash,
-                            contentDescription = stringResource(R.string.upload_button),
+                            contentDescription = "Recovery",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -109,7 +110,7 @@ fun DeletedNoteDetailsScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.delete_button),
+                    contentDescription = "Delete Forever",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

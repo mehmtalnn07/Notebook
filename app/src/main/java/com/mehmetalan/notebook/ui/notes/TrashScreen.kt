@@ -1,15 +1,14 @@
 package com.mehmetalan.notebook.ui.notes
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,16 +19,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Restore
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -47,9 +43,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -120,7 +114,9 @@ fun TrashScreen(
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            text = "Çöp Kutusu"
+                            text = stringResource(id = R.string.navigation_drawer_trash),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     },
                     navigationIcon = {
@@ -143,7 +139,7 @@ fun TrashScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Close,
-                                    contentDescription = ""
+                                    contentDescription = "Close Button"
                                 )
                             }
                         }
@@ -154,7 +150,7 @@ fun TrashScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.MoreVert,
-                                contentDescription = ""
+                                contentDescription = "MoreVert Button"
                             )
                         }
                     }
@@ -164,6 +160,7 @@ fun TrashScreen(
                     title = {
                         Text(
                             text = TrashScreenDestination.titleRes,
+                            fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     },
@@ -172,8 +169,8 @@ fun TrashScreen(
                             onClick = onBackButtonPressed
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = stringResource(R.string.back_button),
+                                imageVector = Icons.Default.ArrowBackIosNew,
+                                contentDescription = "Back Button",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -187,139 +184,158 @@ fun TrashScreen(
             )
         }
     ) {innerPadding ->
-        Column (
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            DropdownMenu(
-                offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
-                expanded = showDropDownMenu,
-                onDismissRequest = { showDropDownMenu = false },
+        if (activeNotes.isEmpty()) {
+            Column (
+                modifier = Modifier
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Kalıcı Olarak Sil",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    onClick = {
-                        showDropDownMenu = false
-                        deleteDialog = true
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = "",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                Icon(
+                    imageVector = Icons.Outlined.DeleteForever,
+                    contentDescription = "Delete Button",
+                    modifier = Modifier
+                        .size(200.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Geri Yükle",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    onClick = {
-                        val notesToDeleteIds = selectedNotes.map { it.id }
-                        viewModel.recoveryNotesMultiple(notesToDeleteIds)
-                        topBarChanged = false
-                        showDropDownMenu = false
-                    },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Restore,
-                            contentDescription = "",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                Spacer(
+                    modifier = Modifier
+                        .size(20.dp)
                 )
-
-            }
-            if (activeNotes.isEmpty()) {
                 Text(
-                    text = "Çöp Kutunuz Boş",
-                    color = MaterialTheme.colorScheme.primary,
+                    text = stringResource(id = R.string.trash_screen_empty_info),
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
-            if (deleteDialog) {
-                DeleteConfirmationDialog(
-                    onDeleteConfirm = {
-                        viewModel.deleteNotesMultiple(noteList = selectedNotes.toList())
-                        selectedNotes = emptySet()
-                        topBarChanged = false
-                        deleteDialog = false
-                        scope.launch {
-                            val result = snackBarHostState
-                                .showSnackbar(
-                                    message = "${selectedNotes.size} adet not silindi",
-                                )
-                            when (result) {
-                                SnackbarResult.ActionPerformed -> {
-                                    Toast.makeText(context, "Action a tıklandı", Toast.LENGTH_SHORT).show()
-                                }
-                                SnackbarResult.Dismissed -> {
-                                    Toast.makeText(context, "snackbar kendi kendine kapandı", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    },
-                    onDeleteCancel = {
-                        deleteDialog = false
-                    },
-                    noteList = selectedNotes.toList()
-                )
-            }
-            LazyVerticalGrid (
-                columns = GridCells.Fixed(2),
-                modifier = modifier
+        } else {
+            Column (
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                items(items = activeNotes, key = { note -> note.id }) { note ->
-                    val isSelected = selectedNotes.contains(note)
-                    NoteItem(
-                        note = note,
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .combinedClickable(
-                                onLongClick = {
-                                    note.isSelect = true
-                                    selectedNotes = selectedNotes + note
-                                    allSelected = selectedNotes.size == activeNotes.size
-                                    topBarChanged = true
-                                },
-                                onClick = {
-                                    if (topBarChanged) {
-                                        selectedNotes = if (isSelected) {
-                                            selectedNotes - note
-                                        } else {
-                                            selectedNotes + note
+                DropdownMenu(
+                    offset = DpOffset(x = screenWidthDp - 0.dp, y = 50.dp),
+                    expanded = showDropDownMenu,
+                    onDismissRequest = { showDropDownMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(id = R.string.delete_from_trash),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        onClick = {
+                            showDropDownMenu = false
+                            deleteDialog = true
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = "Delete Button",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    )
 
-                                        }
-                                        note.isSelect = true
-                                        allSelected = selectedNotes.size == activeNotes.size
-                                    } else {
-                                        navigateToDetailPage(note.id)
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(id = R.string.recovery),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        onClick = {
+                            val notesToDeleteIds = selectedNotes.map { it.id }
+                            viewModel.recoveryNotesMultiple(notesToDeleteIds)
+                            topBarChanged = false
+                            showDropDownMenu = false
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Restore,
+                                contentDescription = "Recovery Button",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    )
+
+                }
+                if (deleteDialog) {
+                    DeleteConfirmationDialog(
+                        onDeleteConfirm = {
+                            viewModel.deleteNotesMultiple(noteList = selectedNotes.toList())
+                            selectedNotes = emptySet()
+                            topBarChanged = false
+                            deleteDialog = false
+                            scope.launch {
+                                val result = snackBarHostState
+                                    .showSnackbar(
+                                        message = "Not Silindi",
+                                    )
+                                when (result) {
+                                    SnackbarResult.ActionPerformed -> {
+                                    }
+                                    SnackbarResult.Dismissed -> {
                                     }
                                 }
-                            ),
-                        isSelected = isSelected,
-                        onSelectionChange = { isChecked ->
-                            if (isChecked) {
-                                selectedNotes = selectedNotes + note
-                            } else {
-                                selectedNotes = selectedNotes - note
                             }
-                            allSelected = selectedNotes.size == activeNotes.size // Hepsi seçili mi kontrol et
                         },
-                        showCheckbox = topBarChanged
+                        onDeleteCancel = {
+                            deleteDialog = false
+                        },
+                        noteList = selectedNotes.toList()
                     )
+                }
+                LazyVerticalGrid (
+                    columns = GridCells.Fixed(2),
+                    modifier = modifier
+                ) {
+                    items(items = activeNotes, key = { note -> note.id }) { note ->
+                        val isSelected = selectedNotes.contains(note)
+                        NoteItem(
+                            note = note,
+                            modifier = Modifier
+                                .padding(vertical = 8.dp)
+                                .combinedClickable(
+                                    onLongClick = {
+                                        note.isSelect = true
+                                        selectedNotes = selectedNotes + note
+                                        allSelected = selectedNotes.size == activeNotes.size
+                                        topBarChanged = true
+                                    },
+                                    onClick = {
+                                        if (topBarChanged) {
+                                            selectedNotes = if (isSelected) {
+                                                note.isSelect = false
+                                                selectedNotes - note
+                                            } else {
+                                                note.isSelect = true
+                                                selectedNotes + note
+
+                                            }
+                                            note.isSelect = true
+                                            allSelected = selectedNotes.size == activeNotes.size
+                                        } else {
+                                            navigateToDetailPage(note.id)
+                                        }
+                                    }
+                                ),
+                            isSelected = isSelected,
+                            onSelectionChange = { isChecked ->
+                                if (isChecked) {
+                                    selectedNotes = selectedNotes + note
+                                } else {
+                                    selectedNotes = selectedNotes - note
+                                }
+                                allSelected = selectedNotes.size == activeNotes.size
+                            },
+                            showCheckbox = topBarChanged
+                        )
+                    }
                 }
             }
         }
@@ -337,27 +353,24 @@ private fun NoteItem(
 ) {
     val iconTint = if (note.favorite) colorResource(R.color.orange) else Color.Transparent
     Column {
-        OutlinedCard(
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        OutlinedCard (
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = modifier
                 .padding(start = 10.dp, end = 10.dp)
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary,
+                    width = if (isSelected) 5.dp else 0.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(10.dp)
                 )
         ) {
             if (showCheckbox) {
                 Checkbox(
                     checked = isSelected,
-                    onCheckedChange = {
-                        onSelectionChange(it)
-                        note.isSelect = true
-                    },
+                    onCheckedChange = onSelectionChange,
                     modifier = Modifier.padding(8.dp)
                 )
             }
-            Row(
+            Row (
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(end = 5.dp, top = 3.dp),
@@ -372,7 +385,7 @@ private fun NoteItem(
                         .alpha(1f)
                 )
             }
-            Column(
+            Column (
                 modifier = Modifier
                     .background(Color.Transparent)
                     .fillMaxWidth(),
@@ -399,7 +412,7 @@ private fun NoteItem(
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
-                Row(
+                Row (
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -425,19 +438,31 @@ fun DeleteConfirmationDialog(
     AlertDialog(
         onDismissRequest = { onDeleteCancel() },
         title = {
-            Text(text = "Notları Sil")
+            Text(
+                text = stringResource(id = R.string.delete_from_trash),
+                color = MaterialTheme.colorScheme.primary
+            )
         },
         text = {
-            Text("Seçili notları kalıcı olarak silmek istediğinize emin misiniz?")
+            Text(
+                text = stringResource(id = R.string.trash_dialog_message),
+                color = MaterialTheme.colorScheme.primary
+            )
         },
         confirmButton = {
             TextButton(onClick = { onDeleteConfirm(noteList) }) {
-                Text("Sil")
+                Text(
+                    text = stringResource(id = R.string.alert_dialog_confirm_button),
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = { onDeleteCancel() }) {
-                Text("İptal")
+                Text(
+                    text = stringResource(id = R.string.alert_dialog_dismiss_button),
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     )
